@@ -11,7 +11,7 @@ features** and combining them with **interpretable models** such as:
 -   Generalized Additive Models (GAM)
 -   Explainable Boosting Machines (EBM)
 
-Unlike deep learning approaches (e.g., CNN + SHAP), the goal is to
+Unlike deep learning approaches (e.g., [CNN + SHAP](https://doi.org/10.1007/978-3-032-10185-3_25)), the goal is to
 ensure that **interpretability is intrinsic to the model and input
 representation**, not added afterwards.
 
@@ -62,20 +62,19 @@ temporal segments**.
 
 # Waveform Segmentation Strategy
 
-Using the fixed P arrival, we define four interpretable time windows:
+Using the fixed P arrival (5 seconds), the waveform is divided into **three interpretable temporal segments**:
 
-  Segment       Time Range   Physical Meaning
-  ------------- ------------ ------------------------
-  Pre-P noise   0--5 s       Background noise
-  P-onset       5--7 s       Direct arrival
-  Early coda    7--10 s      Early scattered energy
-  Late coda     10--13 s     Late decay
+| Segment | Time Range | Physical Meaning |
+|---|---|---|
+| Pre-P noise | [0,5) s | Background noise before the arrival |
+| P + early signal | [5,8) s | Direct P arrival and early waveform |
+| Coda | [8,13] s | Scattered energy and signal decay |
 
 This segmentation allows the model to capture:
 
--   signal-to-noise ratio
--   energy distribution over time
--   coda decay characteristics
+- signal-to-noise ratio between noise and arrival
+- energy concentration during the P-wave window
+- energy decay during the coda
 
 These properties often differ between **foreshocks and aftershocks**.
 
@@ -131,21 +130,17 @@ Some particularly interpretable features include:
 
 -   **Signal-to-noise proxy**
 
-    RMS(5--7s) / RMS(0--5s)
+    RMS(5–8s) / RMS(0–5s)
 
 -   **Coda/P energy ratio**
 
-    Energy(7--13s) / Energy(5--7s)
-
--   **Late/Early coda ratio**
-
-    Energy(10--13s) / Energy(7--10s)
+    Energy(8–13s) / Energy(5–8s)
 
 -   **Vertical/Horizontal ratio**
 
     Energy(Z) / Energy(H)
 
-These ratios describe how seismic energy evolves after the P arrival.
+These ratios describe how seismic energy evolves from the direct P-wave arrival into the coda phase.
 
 ------------------------------------------------------------------------
 
