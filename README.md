@@ -50,8 +50,8 @@ Waveforms have the following structure:
 
 -   **3 components:** E, N, Z
 -   **Sampling rate:** 100 Hz
--   **Duration:** 13 seconds
--   **Samples per channel:** 1300
+-   **Duration:** 15 seconds
+-   **Samples per channel:** 1500
 
 The **P-wave arrival is fixed at 5 seconds**.
 
@@ -62,13 +62,15 @@ temporal segments**.
 
 # Waveform Segmentation Strategy
 
-Using the fixed P arrival (5 seconds), the waveform is divided into **three interpretable temporal segments**:
+# Waveform Segmentation Strategy
+
+Using the fixed P arrival at **5 seconds**, the waveform is divided into **three interpretable temporal segments**:
 
 | Segment | Time Range | Physical Meaning |
 |---|---|---|
 | Pre-P noise | [0,5) s | Background noise before the arrival |
 | P + early signal | [5,8) s | Direct P arrival and early waveform |
-| Coda | [8,13] s | Scattered energy and signal decay |
+| Coda | [8,15] s | Scattered energy and signal decay |
 
 This segmentation allows the model to capture:
 
@@ -127,18 +129,21 @@ Additional features:
 ### Cross-Segment Ratios
 
 Some particularly interpretable features include:
+- **Signal-to-noise proxy**
 
--   **Signal-to-noise proxy**
+  RMS(5–8s) / RMS(0–5s)
 
-    RMS(5–8s) / RMS(0–5s)
+- **Coda/P energy ratio**
 
--   **Coda/P energy ratio**
+  Energy(8–15s) / Energy(5–8s)
 
-    Energy(8–13s) / Energy(5–8s)
+- **Vertical/Horizontal ratio**
 
--   **Vertical/Horizontal ratio**
+  Energy(Z) / Energy(H)
 
-    Energy(Z) / Energy(H)
+where
+
+H = sqrt(E² + N²)
 
 These ratios describe how seismic energy evolves from the direct P-wave arrival into the coda phase.
 
@@ -166,18 +171,19 @@ Example bins:
 30--40 Hz\
 40--50 Hz
 
-For the **post-P window (5--13 s)**:
 
--   8 time bins
+For the **post-P window (5–15 s)**:
+
+-   10 time bins
 -   5 frequency bins
 
 Total features per channel:
 
-    8 × 5 = 40
+    10 × 5 = 50
 
 Across three channels:
 
-    120 spectrogram features
+    150 spectrogram features
 
 Each feature corresponds to:
 
@@ -198,10 +204,6 @@ The goal is to capture both:
 
 -   physically interpretable signal properties
 -   detailed temporal-frequency patterns
-
-Expected feature count:
-
-    ~150 features
 
 ------------------------------------------------------------------------
 
@@ -311,47 +313,6 @@ insights**, such as:
 -   vertical vs horizontal energy ratios
 
 These patterns can be directly derived from the learned feature effects.
-
-------------------------------------------------------------------------
-
-# Project Structure
-
-Example repository structure:
-
-    project/
-    │
-    ├── data/
-    │   ├── raw_waveforms/
-    │   └── processed/
-    │
-    ├── preprocessing/
-    │   ├── segmentation.py
-    │   ├── split_features.py
-    │   └── spectrogram_features.py
-    │
-    ├── models/
-    │   ├── logistic.py
-    │   ├── gam.py
-    │   └── ebm.py
-    │
-    ├── experiments/
-    │   ├── run_split_features.py
-    │   ├── run_spectrogram.py
-    │   └── run_hybrid.py
-    │
-    └── README.md
-
-------------------------------------------------------------------------
-
-# Future Extensions
-
-Possible improvements:
-
--   station-specific models
--   cross-station generalization experiments
--   inclusion of S-wave windows if picks are available
--   dimensionality reduction with interpretable methods (e.g., PCA
-    loadings inspection)
 
 ------------------------------------------------------------------------
 
