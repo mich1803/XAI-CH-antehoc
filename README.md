@@ -8,8 +8,10 @@ The project focuses on designing **physically interpretable input
 features** and combining them with **interpretable models** such as:
 
 -   Logistic Regression (L1)
--   Generalized Additive Models (GAM)
 -   Explainable Boosting Machines (EBM)
+
+> **Note:** We initially planned to include GAMs, but removed them from the codebase due to numerical instability on this feature space.
+
 
 Unlike deep learning approaches (e.g., [CNN + SHAP](https://doi.org/10.1007/978-3-032-10185-3_25)), the goal is to
 ensure that **interpretability is intrinsic to the model and input
@@ -49,9 +51,9 @@ This allows direct scientific interpretation such as:
 Waveforms have the following structure:
 
 -   **3 components:** E, N, Z
--   **Sampling rate:** 100 Hz
+-   **Sampling rate:** 120 Hz
 -   **Duration:** 15 seconds
--   **Samples per channel:** 1500
+-   **Samples per channel:** ~1800 (15 s × 120 Hz; stored as 1801 points in the provided H5)
 
 The **P-wave arrival is fixed at 5 seconds**.
 
@@ -59,8 +61,6 @@ This allows the waveform to be divided into **physically meaningful
 temporal segments**.
 
 ------------------------------------------------------------------------
-
-# Waveform Segmentation Strategy
 
 # Waveform Segmentation Strategy
 
@@ -169,21 +169,22 @@ Example bins:
 10--20 Hz\
 20--30 Hz\
 30--40 Hz\
-40--50 Hz
+40--50 Hz\
+50--60 Hz
 
 
 For the **post-P window (5–15 s)**:
 
 -   10 time bins
--   5 frequency bins
+-   6 frequency bins
 
 Total features per channel:
 
-    10 × 5 = 50
+    10 × 6 = 60
 
 Across three channels:
 
-    150 spectrogram features
+    180 spectrogram features
 
 Each feature corresponds to:
 
@@ -204,6 +205,13 @@ The goal is to capture both:
 
 -   physically interpretable signal properties
 -   detailed temporal-frequency patterns
+
+Expected feature count (with the current extraction scripts):
+
+- Split features: ~138 model features
+- Low-res spectrogram: ~180 model features
+- Hybrid: ~318 model features
+
 
 ------------------------------------------------------------------------
 
@@ -234,24 +242,6 @@ aftershock.
 
 ------------------------------------------------------------------------
 
-## Generalized Additive Models (GAM)
-
-Model:
-
-g(E\[y\]) = β₀ + Σ fᵢ(xᵢ)
-
-Instead of linear coefficients, each feature has a **learned nonlinear
-function**.
-
-Advantages:
-
--   captures nonlinear thresholds
--   still interpretable feature-by-feature
-
-Example interpretation:
-
-    Aftershock probability increases rapidly when spectral centroid > 12 Hz
-
 ------------------------------------------------------------------------
 
 ## Explainable Boosting Machines (EBM)
@@ -265,7 +255,7 @@ y = β₀ + Σ fᵢ(xᵢ) + Σ fᵢⱼ(xᵢ,xⱼ)
 Properties:
 
 -   additive feature effects
--   optional pairwise interactions
+-   optional pairwise interactions (disabled by default for maximum interpretability)
 -   high accuracy while preserving interpretability
 
 Visualization includes:
@@ -280,17 +270,14 @@ Visualization includes:
 
 We evaluate the following combinations:
 
-  Input Representation   Model
-  ---------------------- ---------------------
-  Split features         Logistic Regression
-  Split features         GAM
-  Split features         EBM
-  Spectrogram            Logistic Regression
-  Spectrogram            GAM
-  Spectrogram            EBM
-  Hybrid                 Logistic Regression
-  Hybrid                 GAM
-  Hybrid                 EBM
+| Input Representation | Model |
+|---|---|
+| Split features | Logistic Regression (L1) |
+| Split features | EBM (additive) |
+| Spectrogram | Logistic Regression (L1) |
+| Spectrogram | EBM (additive) |
+| Hybrid | Logistic Regression (L1) |
+| Hybrid | EBM (additive) |
 
 Metrics:
 
