@@ -1,4 +1,4 @@
-# XAI for Swiss Earthquakes (Diemtigen): EBM + 3-Segment Features
+# XAI for Swiss Earthquakes (Diemtigen)
 
 This repository contains full **pipeline-notebooks** for ante-hoc interpretable classification of **foreshocks vs aftershocks** in the Diemtigen sequence.
 
