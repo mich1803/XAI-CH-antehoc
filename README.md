@@ -1,318 +1,79 @@
-# Interpretable Classification of Foreshocks vs Aftershocks -- Diemtigen Sequence
+# XAI for Swiss Earthquakes (Diemtigen): EBM + 3-Segment Features
 
-This repository explores **ante-hoc interpretable machine learning
-models** for classifying seismic waveforms as **foreshocks or
-aftershocks** using the **Diemtigen sequence dataset**.
+This repository contains a **single, coherent notebook workflow** for ante-hoc interpretable classification of **foreshocks vs aftershocks** in the Diemtigen sequence.
 
-The project focuses on designing **physically interpretable input
-features** and combining them with **interpretable models** such as:
+## What is kept (scope)
 
--   Logistic Regression (L1)
--   Explainable Boosting Machines (EBM)
+To keep the project focused and reproducible, the repo now uses only:
 
-> **Note:** We initially planned to include GAMs, but removed them from the codebase due to numerical instability on this feature space.
+- **Model:** Explainable Boosting Machine (**EBM**)  
+- **Input representation:** **3-segment signal features** extracted from 3-component waveforms (E, N, Z)
 
+Removed from the workflow:
 
-Unlike deep learning approaches (e.g., [CNN + SHAP](https://doi.org/10.1007/978-3-032-10185-3_25)), the goal is to
-ensure that **interpretability is intrinsic to the model and input
-representation**, not added afterwards.
+- Logistic Regression experiments
+- Low-resolution spectrogram representation
+- Hybrid (feature + spectrogram) representation
 
-The classification problem follows the definition of **ante-hoc
-interpretability** described in:
+## Dataset assumptions
 
--   Molnar et al., interpretable ML frameworks
--   https://www.sciencedirect.com/science/article/pii/S1389041724000378
+Input data is expected under `diemtigen_data/`:
 
-------------------------------------------------------------------------
+- `events_mainshocks_foreshocks_aftershocks_15sec_23days.h5`
+- `info_h5_events_mainshocks_foreshocks_aftershocks_15sec_23days.csv`
 
-# Project Goal
+Waveform setup:
 
-Classify seismic events as:
+- 3 components: E, N, Z
+- Sampling rate: ~120 Hz
+- Duration: 15 s
+- Fixed P arrival at 5 s
 
--   **Foreshocks**
--   **Aftershocks**
+## 3-segment feature design
 
-using **3-component waveform recordings** while ensuring that:
+Each waveform is split into physically meaningful windows:
 
-1.  The **input features correspond to meaningful physical signal
-    properties**
-2.  The **model structure directly maps input features to predictions**
-3.  The system avoids black-box feature extraction
+- **Noise:** [0, 5) s
+- **P window:** [5, 8) s
+- **Coda:** [8, 15] s
 
-This allows direct scientific interpretation such as:
+For each segment and channel, the notebook extracts interpretable features such as:
 
-> "High energy in the 10--20 Hz band during the early post-P window
-> increases the probability of an aftershock."
+- RMS
+- Energy
+- Peak absolute amplitude
+- Zero crossing rate
 
-------------------------------------------------------------------------
+It also computes simple cross-segment ratios, e.g.:
 
-# Dataset Description
+- `p_rms / noise_rms` (signal-to-noise proxy)
+- `coda_energy / p_energy`
 
-Waveforms have the following structure:
+The resulting table is saved as:
 
--   **3 components:** E, N, Z
--   **Sampling rate:** 120 Hz
--   **Duration:** 15 seconds
--   **Samples per channel:** ~1800 (15 s × 120 Hz; stored as 1801 points in the provided H5)
+- `diemtigen_data/data_features.csv`
 
-The **P-wave arrival is fixed at 5 seconds**.
+## Single notebook workflow
 
-This allows the waveform to be divided into **physically meaningful
-temporal segments**.
+Run:
 
-------------------------------------------------------------------------
+- `01_ebm_3segment_pipeline.ipynb`
 
-# Waveform Segmentation Strategy
+This notebook performs end-to-end steps:
 
-Using the fixed P arrival at **5 seconds**, the waveform is divided into **three interpretable temporal segments**:
+1. Load metadata and keep only foreshock/aftershock events
+2. Build 3-segment feature table (`data_features.csv`)
+3. Train/test split
+4. Train additive EBM (`interactions=0`)
+5. Evaluate with Accuracy, F1, ROC-AUC, confusion matrix
+6. Interpret model via native EBM global importances and segment/channel aggregation
 
-| Segment | Time Range | Physical Meaning |
-|---|---|---|
-| Pre-P noise | [0,5) s | Background noise before the arrival |
-| P + early signal | [5,8) s | Direct P arrival and early waveform |
-| Coda | [8,15] s | Scattered energy and signal decay |
+## Install
 
-This segmentation allows the model to capture:
+```bash
+pip install -r requirements.txt
+```
 
-- signal-to-noise ratio between noise and arrival
-- energy concentration during the P-wave window
-- energy decay during the coda
+## Why this design
 
-These properties often differ between **foreshocks and aftershocks**.
-
-------------------------------------------------------------------------
-
-# Input Representations Tested
-
-The project compares **three interpretable input strategies**.
-
-## 1️⃣ Split Waveform Features
-
-Features computed independently within each segment.
-
-For each channel (E, N, Z) we compute:
-
-### Time-Domain Features
-
--   RMS amplitude
--   Peak absolute amplitude
--   Signal energy
--   Standard deviation
--   Crest factor (peak / RMS)
--   Zero crossing rate
-
-### Envelope Features
-
-Envelope computed via Hilbert transform.
-
--   Maximum envelope
--   Envelope area
--   Envelope decay slope (coda windows)
-
-### Frequency-Domain Features
-
-Power spectral density (PSD) is computed and energy is integrated in
-bands:
-
-  Frequency Band
-  ----------------
-  1--5 Hz
-  5--10 Hz
-  10--20 Hz
-  20--45 Hz
-
-Additional features:
-
--   spectral centroid
--   spectral bandwidth
-
-### Cross-Segment Ratios
-
-Some particularly interpretable features include:
-- **Signal-to-noise proxy**
-
-  RMS(5–8s) / RMS(0–5s)
-
-- **Coda/P energy ratio**
-
-  Energy(8–15s) / Energy(5–8s)
-
-- **Vertical/Horizontal ratio**
-
-  Energy(Z) / Energy(H)
-
-where
-
-H = sqrt(E² + N²)
-
-These ratios describe how seismic energy evolves from the direct P-wave arrival into the coda phase.
-
-------------------------------------------------------------------------
-
-## 2️⃣ Low-Resolution Spectrogram Features
-
-Instead of high-resolution spectrograms used by CNNs, we construct
-**coarse interpretable time-frequency bins**.
-
-Procedure:
-
--   Compute STFT
--   Use **1 second windows**
--   Use **10 Hz frequency bins**
-
-Example bins:
-
-  Frequency bins
-  ----------------
-
-0--10 Hz\
-10--20 Hz\
-20--30 Hz\
-30--40 Hz\
-40--50 Hz\
-50--60 Hz
-
-
-For the **post-P window (5–15 s)**:
-
--   10 time bins
--   6 frequency bins
-
-Total features per channel:
-
-    10 × 6 = 60
-
-Across three channels:
-
-    180 spectrogram features
-
-Each feature corresponds to:
-
-> Energy in frequency band F during second T on channel C
-
-This preserves interpretability.
-
-------------------------------------------------------------------------
-
-## 3️⃣ Hybrid Input (Split Features + Spectrogram)
-
-This representation combines:
-
--   phase-based physical features
--   coarse time-frequency descriptors
-
-The goal is to capture both:
-
--   physically interpretable signal properties
--   detailed temporal-frequency patterns
-
-Expected feature count (with the current extraction scripts):
-
-- Split features: ~138 model features
-- Low-res spectrogram: ~180 model features
-- Hybrid: ~318 model features
-
-
-------------------------------------------------------------------------
-
-# Interpretable Models
-
-## Logistic Regression (L1)
-
-Model:
-
-P(y=1\|x) = σ(β₀ + Σ βᵢxᵢ)
-
-Properties:
-
--   linear additive model
--   coefficients directly represent feature influence
-
-L1 regularization forces **sparse models**, selecting only the most
-relevant features.
-
-Interpretation example:
-
-    β_energy_10_20Hz = +1.2
-
-Meaning:
-
-Increasing energy in the 10--20 Hz band increases the probability of an
-aftershock.
-
-------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-## Explainable Boosting Machines (EBM)
-
-EBM is an interpretable boosting method.
-
-Model structure:
-
-y = β₀ + Σ fᵢ(xᵢ) + Σ fᵢⱼ(xᵢ,xⱼ)
-
-Properties:
-
--   additive feature effects
--   optional pairwise interactions (disabled by default for maximum interpretability)
--   high accuracy while preserving interpretability
-
-Visualization includes:
-
--   feature importance
--   shape functions
--   interaction heatmaps
-
-------------------------------------------------------------------------
-
-# Experimental Design
-
-We evaluate the following combinations:
-
-| Input Representation | Model |
-|---|---|
-| Split features | Logistic Regression (L1) |
-| Split features | EBM (additive) |
-| Spectrogram | Logistic Regression (L1) |
-| Spectrogram | EBM (additive) |
-| Hybrid | Logistic Regression (L1) |
-| Hybrid | EBM (additive) |
-
-Metrics:
-
--   Accuracy
--   F1-score
--   ROC-AUC
-
-Cross-validation should be used to avoid overfitting.
-
-------------------------------------------------------------------------
-
-# Expected Scientific Interpretation
-
-The goal is not only classification accuracy but also **scientific
-insights**, such as:
-
--   energy distribution differences between foreshocks and aftershocks
--   spectral shifts after the P arrival
--   coda decay differences
--   vertical vs horizontal energy ratios
-
-These patterns can be directly derived from the learned feature effects.
-
-------------------------------------------------------------------------
-
-# References
-
-Diemtigen sequence study:
-
-https://doi.org/10.1029/2021GL093783
-
-Interpretable ML concepts:
-
-Molnar, *Interpretable Machine Learning*
-
-Explainable Boosting Machine:
-
-Microsoft InterpretML
+This repo targets **ante-hoc interpretability**: both features and model are inherently interpretable, so scientific interpretation can be made directly from learned effects rather than post-hoc explainers.
