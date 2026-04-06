@@ -5,3 +5,7 @@ scipy
 scikit-learn
 pygam
 interpret
+torch
+tqdm
+matplotlib
+seaborn
