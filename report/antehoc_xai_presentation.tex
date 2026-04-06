@@ -1,0 +1,165 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{amsmath}
+
+\title{Ante-hoc Explainable AI for\\Foreshock vs Aftershock Classification}
+\author{XAI-CH Project}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Task Overview: Exploring an Ante-hoc XAI Method}
+\begin{itemize}
+  \item Goal: classify seismic events as \textbf{foreshock} (label 0) or \textbf{aftershock} (label 1), while keeping model reasoning interpretable.
+  \item Ante-hoc explainability means the model is designed to be interpretable \emph{during} training/inference, not explained only post-hoc.
+  \item Repository notebooks evaluate two approaches:
+  \begin{itemize}
+      \item \textbf{Explainable Boosting Machine (EBM)} on engineered 3-segment features.
+      \item \textbf{Token-based Attention Transformer} on tokenized waveform segments.
+  \end{itemize}
+  \item Dataset size reported in notebooks: \textbf{2,341} foreshock/aftershock events.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Method 1: EBM (Feature-based Ante-hoc Model)}
+\textbf{How the model works}
+\begin{itemize}
+  \item EBM is a generalized additive model (GAM) with boosted trees for each feature (and optionally selected interactions).
+  \item Prediction is additive:
+  \[
+    \hat{y} = b + \sum_j f_j(x_j)\ (+\ \sum_{j,k} f_{jk}(x_j,x_k)\,\text{if interactions are enabled})
+  \]
+  \item Notebook uses 3-segment seismic features (noise, P-phase, coda) and channel-wise spectral/statistical descriptors.
+\end{itemize}
+
+\textbf{Why it is explainable}
+\begin{itemize}
+  \item Global explainability: feature importance and per-feature shape functions.
+  \item Local explainability: event-level additive contribution of each feature.
+  \item Additive structure supports direct traceability from feature values to decision score.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{EBM Results from Notebook}
+\begin{itemize}
+  \item Test-set metrics reported:
+  \begin{itemize}
+    \item Accuracy: \textbf{0.6077}
+    \item F1-score: \textbf{0.6290}
+    \item ROC-AUC: \textbf{0.6364}
+  \end{itemize}
+  \item Class-wise report highlights:
+  \begin{itemize}
+    \item Foreshock: precision 0.62, recall 0.55, F1 0.58.
+    \item Aftershock: precision 0.60, recall 0.66, F1 0.63.
+  \end{itemize}
+  \item Confusion matrix indicates moderate but meaningful separability between classes.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{EBM Explanation Examples from Notebook}
+\textbf{Global feature importance examples}
+\begin{itemize}
+  \item Top features include:
+  \begin{itemize}
+    \item \texttt{N\_coda\_band\_20\_45\_pow} (importance 0.1023)
+    \item \texttt{N\_coda\_band\_5\_10\_pow} (importance 0.0987)
+    \item \texttt{N\_noise\_band\_5\_10\_pow} (importance 0.0701)
+    \item \texttt{Z\_noise\_band\_20\_45\_pow} (importance 0.0666)
+  \end{itemize}
+  \item Segment/channel aggregation in notebook ranks \textbf{coda-N} and \textbf{coda-Z} among strongest contributors.
+\end{itemize}
+
+\textbf{Interpretation result}
+\begin{itemize}
+  \item The model emphasizes coda/noise spectral-energy patterns, providing a physically interpretable pathway for class separation.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Method 2: Token-based Attention Transformer}
+\textbf{How the model works}
+\begin{itemize}
+  \item Waveforms are split into fixed-length tokens; each token is projected to an embedding.
+  \item A Transformer encoder with multi-head self-attention processes token sequence plus a CLS token.
+  \item Final class probability is produced from the CLS representation.
+\end{itemize}
+
+\textbf{Why it can be explainable}
+\begin{itemize}
+  \item Last-layer CLS$\rightarrow$token attention provides token-level relevance scores.
+  \item Relevance can be mapped back to event timeline to inspect what temporal regions influence the decision.
+  \item Notebook additionally evaluates faithfulness (removal/insertion curves), testing if high-attention tokens are truly influential.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Transformer Results from Notebook}
+\begin{itemize}
+  \item Test-set metrics reported:
+  \begin{itemize}
+    \item Accuracy: \textbf{0.4886}
+    \item F1-score: \textbf{0.4479}
+    \item ROC-AUC: \textbf{0.4926}
+  \end{itemize}
+  \item Class-wise report highlights:
+  \begin{itemize}
+    \item Foreshock: precision 0.49, recall 0.56, F1 0.52.
+    \item Aftershock: precision 0.49, recall 0.41, F1 0.45.
+  \end{itemize}
+  \item Performance is near chance-level in this run, lower than EBM in all three metrics.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Transformer Explanation Examples from Notebook}
+\textbf{Attention-based examples}
+\begin{itemize}
+  \item Notebook visualizes last-layer CLS attention over tokens aligned with waveform timeline.
+  \item This provides event-level explanation: which temporal tokens were weighted most for each prediction.
+\end{itemize}
+
+\textbf{Faithfulness test results}
+\begin{itemize}
+  \item Base mean $P(\text{class}=1)$: \textbf{0.4898}
+  \item Removal gap at 50\% tokens kept (attention-random): \textbf{0.2305}
+  \item Insertion gap at 50\% tokens inserted (attention-random): \textbf{-0.0612}
+\end{itemize}
+
+\textbf{Interpretation result}
+\begin{itemize}
+  \item Attention carries some signal for removal-based perturbation, but insertion result suggests incomplete faithfulness/calibration.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Overall Comparison and Takeaways}
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Method & Accuracy & F1 & ROC-AUC \\
+\midrule
+EBM (feature-based) & 0.6077 & 0.6290 & 0.6364 \\
+Token Attention Transformer & 0.4886 & 0.4479 & 0.4926 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.4cm}
+\begin{itemize}
+  \item In these notebook runs, \textbf{EBM is both more accurate and more reliably interpretable}.
+  \item Transformer gives richer temporal explanations, but predictive quality and faithfulness need improvement.
+  \item Practical next step: preserve token-level explainability while improving architecture/training and validating with stronger faithfulness checks.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{End}
+\centering
+\Large Questions?
+\end{frame}
+
+\end{document}
